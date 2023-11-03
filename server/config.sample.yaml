@@ -1,0 +1,5 @@
+upstream_addr: "http://example.com"
+listen_addr: 0.0.0.0:3000
+auth_trigger_path: /auth
+auth:
+  username: password
