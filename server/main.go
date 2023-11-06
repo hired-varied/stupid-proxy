@@ -35,8 +35,9 @@ type Config struct {
 }
 
 type defaultHandler struct {
-	reverseProxy *httputil.ReverseProxy
-	config       Config
+	reverseProxyUpstreamHost string
+	reverseProxy             *httputil.ReverseProxy
+	config                   Config
 }
 
 type flushWriter struct {
@@ -136,6 +137,13 @@ func proxy(w http.ResponseWriter, r *http.Request, username string) {
 }
 
 func (h *defaultHandler) handleReverseProxy(w http.ResponseWriter, r *http.Request) {
+	for k := range r.Header {
+		lk := strings.ToLower(k)
+		if lk == "host" || lk == "authority" {
+			r.Header.Del(k)
+		}
+	}
+	r.Header.Add("Host", h.reverseProxyUpstreamHost)
 	h.reverseProxy.ServeHTTP(w, r)
 }
 
@@ -247,6 +255,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to parse reverse proxy URL", err)
 	}
+	reverseProxyUpstreamHost := reverseProxyURL.Host
 	reverseProxy := httputil.NewSingleHostReverseProxy(reverseProxyURL)
 	logger.Info("Listening on %s, upstream to %s.\n", config.ListenAddr, config.UpstreamAddr)
 
@@ -254,6 +263,7 @@ func main() {
 	server := &http.Server{
 		Addr: config.ListenAddr,
 		Handler: h2c.NewHandler(&defaultHandler{
+			reverseProxyUpstreamHost,
 			reverseProxy,
 			*config,
 		}, h2s),
